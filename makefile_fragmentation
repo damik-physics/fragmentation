@@ -1,0 +1,69 @@
+include ./gmsl
+
+SHELL := /bin/bash
+
+FC=ifort
+DYNLIB=/home/david/Desktop/PhD/Coding/Fortran/Spartan/lib
+
+#DEFAULT (FAST)
+#FFLAGS=-qopenmp -O3
+#FFLAGS=-qopenmp -O3 -heap-arrays
+FFLAGS=-g -O0 -traceback -debug all -heap-arrays
+
+
+#DEBUG FLAGS
+#FFLAGS=-qopenmp -O0 -g -gen-interfaces -warn interfaces -heap-arrays -check all -check bounds -fp-stack-check -check uninit -ftrapuv -debug all -fpe-all=3 -traceback
+#FFLAGS=-O0 -g -gen-interfaces -warn interfaces -heap-arrays -check all -check bounds -fp-stack-check -check uninit -ftrapuv -debug all -fpe-all=3 -traceback
+
+
+COPTIONS=-I${MKLROOT}/include/intel64/ilp64 -i8  -I"${MKLROOT}/include"
+OPTIONS=-fpp -Dnex=${SITES} -Dmomext=${K}
+
+
+SRC=${MKLROOT}/include/mkl_service.f90 ${MKLROOT}/include/mkl_spblas.f90 ${MKLROOT}/include/mkl_sparse_handle.f90 ${MKLROOT}/include/mkl_pardiso.f90 ./module_fragmentation.f90 ./fragmentation.f90 ./module_variables_fragmentation.f90
+SRC1=fragmentation.f90
+SRC2=module_fragmentation.f90
+SRC3=module_variables_fragmentation.f90
+SRC6=mkl_pardiso.f90
+SRC7=mkl_sparse_handle.f90
+SRC8=mkl_spblas.f90
+
+OBJ=${SRC:.f90=.o}
+
+
+.ONESHELL:
+
+link: compile
+	@ulimit -s unlimited
+	$(FC) $(FFLAGS) $(OPTIONS) -o ./frag_L${SITES}_k${K} ./var.o ./mkl_pardiso.o ./mkl_service.o ./mkl_sparse_handle.o ./mkl_spblas.o ./ham.o ./fragmentation.o -L${DYNLIB} -larpack -llapack -lrefblas -lskit -Wl,--start-group ${MKLROOT}/lib/intel64/libmkl_intel_lp64.a ${MKLROOT}/lib/intel64/libmkl_intel_thread.a ${MKLROOT}/lib/intel64/libmkl_core.a ${MKLROOT}/lib/intel64/libmkl_blacs_intelmpi_lp64.a -Wl,--end-group -liomp5 -lpthread -lm -ldl
+
+
+
+
+compile: ${SRC}
+	@ulimit -s unlimited
+
+	$(FC) $(FFLAGS) $(OPTIONS)  -c ${MKLROOT}/include/mkl_spblas.f90 -o ./mkl_spblas.o  ; \
+
+	$(FC) $(FFLAGS) $(OPTIONS)  -c ${MKLROOT}/include/mkl_sparse_handle.f90 -o ./mkl_sparse_handle.o  ; \
+
+	$(FC) $(FFLAGS) $(OPTIONS)  -c ${MKLROOT}/include/mkl_service.f90 -o ./mkl_service.o  ; \
+
+	$(FC) $(FFLAGS) $(OPTIONS)  -c ${MKLROOT}/include/mkl_pardiso.f90 -o ./mkl_pardiso.o  ; \
+
+	$(FC) $(FFLAGS) $(OPTIONS) -c ./${SRC3} -o ./var.o  ; \
+
+	$(FC) $(FFLAGS) $(OPTIONS) -c ./${SRC2} -o ./ham.o  ; \
+
+	$(FC) $(FFLAGS) $(OPTIONS) -c ./${SRC1} -o ./fragmentation.o  ; \
+
+
+
+
+clean:
+	@rm -f *.mod *.o
+
+cleanall:
+	@rm -f *.mod *.o *.sh *id*
+
+

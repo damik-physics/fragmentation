@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<BrowseTracker_layout_file>
+	<ActiveTarget name="Debug" />
+	<File name="lvl_stat.f90" open="0" top="0" tabpos="2">
+		<Cursor position="620" topLine="0" />
+	</File>
+	<File name="makefile_fragmentation" open="0" top="0" tabpos="2">
+		<Cursor position="45" topLine="0" />
+		<BrowseMarks positions="175" />
+	</File>
+	<File name="fragmentation.f90" open="0" top="0" tabpos="3">
+		<Cursor position="9568" topLine="243" />
+		<BrowseMarks positions="14655,18531" />
+	</File>
+	<File name="module_variables_fragmentation.f90" open="0" top="0" tabpos="1">
+		<Cursor position="1314" topLine="0" />
+		<BrowseMarks positions="54,90,121,152,184" />
+	</File>
+	<File name="module_fragmentation.f90" open="0" top="0" tabpos="0">
+		<Cursor position="156" topLine="24" />
+		<BrowseMarks positions="25563,29087,31338,35407,38447" />
+	</File>
+	<File name="fragmentation_local.f90" open="0" top="0" tabpos="3">
+		<Cursor position="0" topLine="0" />
+	</File>
+	<File name="zheevr_example.f90" open="0" top="0" tabpos="0">
+		<Cursor position="396" topLine="12" />
+	</File>
+</BrowseTracker_layout_file>
