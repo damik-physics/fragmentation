@@ -106,17 +106,12 @@ program fragmentation
     do i = 1, 22
         v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
     end do
-!    allocate(v2_list(23))
-!    do i = 1, 22
-!        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
-!    end do
-!    allocate(v1_list(1))
-!    v1_list(1) = 0
-
-    allocate(v2_list(1))
-
-    v2_list(1) = 0
-
+    allocate(v2_list(23))
+    do i = 1, 22
+        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    end do
+    allocate(v1_list(1))
+    v1_list(1) = 0
 
     call datetime(0)
 
@@ -244,7 +239,6 @@ program fragmentation
                 call findstate(dimtot, nonreps(i - momdim), permutations, allstates(i, 5))
             end do
         end if
-
         deallocate(nonreps)
     else
         call move_alloc(permutations,basiss)
