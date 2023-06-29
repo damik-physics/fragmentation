@@ -5,7 +5,7 @@ implicit none
 integer, parameter :: nthreads = 1
 
 integer, parameter :: ee   = 0
-integer, parameter :: ip   = 0
+integer, parameter :: ip   = 1
 integer, parameter :: lvlp = 1
 
 integer, parameter :: exact       = 1

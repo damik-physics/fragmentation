@@ -71,6 +71,7 @@ program fragmentation
     double precision :: rmean    = 0.d0
     double precision :: thresh   = 0.d0
     double precision :: aviprv1  = 0.d0, aviprv2  = 0.d0
+    double precision :: varv1    = 0.d0, varv2    = 0.d0
     double precision :: vv = 0, v2 = 0, mu = 0, e0 = 0
 
     logical :: check
@@ -110,8 +111,7 @@ program fragmentation
     do i = 1, 22
         v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
     end do
-    allocate(v1_list(1))
-    v1_list(1) = 0
+
 
     call datetime(0)
 
@@ -430,8 +430,8 @@ program fragmentation
                     if ( ip == 1 ) then
                         print*, 'IPR ... '
                         print*, ''
-                        file_name = "ipr_"//parameters
-                        open(61 + units(thread_num + 1, thread_num2 + 1), file=file_name)
+                        !file_name = "ipr_"//parameters
+                        !open(61 + units(thread_num + 1, thread_num2 + 1), file=file_name)
                         if(allocated(iprv1)) deallocate(iprv1)
                         if(allocated(iprv2)) deallocate(iprv2)
                         allocate(iprv1(nest))
@@ -454,7 +454,7 @@ program fragmentation
                                 end do
                                 iprv1(j) = sum((weightsv1)**2)
                                 iprv2(j) = sum((weightsv2)**2)
-                                write( 61 + units( thread_num + 1, thread_num2 + 1 ), *) iprv1( j ), iprv2( j )
+                                !write( 61 + units( thread_num + 1, thread_num2 + 1 ), *) iprv1( j ), iprv2( j )
                             end if
                             if ( ee == 1 ) then
                                 entropy = 0.d0
@@ -467,12 +467,22 @@ program fragmentation
                             end if
                         end do
                         if ( ip == 1 ) then
-                            close( 61 + units( thread_num + 1, thread_num2 + 1 ) )
+                            !close( 61 + units( thread_num + 1, thread_num2 + 1 ) )
                             aviprv1 = sum(iprv1) / dble(size(iprv1))
                             aviprv2 = sum(iprv2) / dble(size(iprv2))
+                            do j = 1, nest
+                                varv1 = varv1 + ( iprv1( j ) - aviprv1 )**2
+                                varv2 = varv2 + ( iprv2( j ) - aviprv2 )**2
+                            end do
+                            varv1 = varv1/nest
+                            varv2 = varv2/nest
                             file_name = "avipr_"//parameters
                             open( 61 + units(thread_num + 1, thread_num2 + 1), file = file_name)
                             write( 61 + units(thread_num + 1, thread_num2 + 1), *) aviprv1, aviprv2
+                            close( 61 + units(thread_num + 1, thread_num2 + 1))
+                            file_name = "variance_"//parameters
+                            open( 61 + units(thread_num + 1, thread_num2 + 1), file = file_name)
+                            write( 61 + units(thread_num + 1, thread_num2 + 1), *) varv1, varv2
                             close( 61 + units(thread_num + 1, thread_num2 + 1))
                         end if
                     else if (ti == 0) then
@@ -567,7 +577,6 @@ program fragmentation
         print*, 'Level statistic parameter ... '
         print*, ''
         if(v1list == 1 .and. v2list == 1) then
-            !rpar
             write (file_name,"('lvl_stat_L=',i0,'N=',i0,'t=',f12.4,'k=',i0,'.dat')") sites, pts, t, mom
             file_name = trim_name(file_name)
             open(99, file=file_name)
@@ -579,8 +588,6 @@ program fragmentation
             end do
             close(99)
         else if (v1list == 1 .and. v2list == 0) then
-            !rpar
-            v2 = 0!v2ext !SPARTAN
             write (file_name,"('lvl_stat_L=',i0,'N=',i0,'t=',f12.4,'k=',i0,'V2=',i0,'.dat')") sites, pts, t, mom, v2i
             file_name = trim_name(file_name)
             open(99, file=file_name)
@@ -590,16 +597,21 @@ program fragmentation
             end do
             close(99)
         else if (v1list == 0 .and. v2list == 1) then
-            !rpar
-            vv = 0! vext !SPARTAN
             write (file_name,"('lvl_stat_L=',i0,'N=',i0,'t=',f12.4,'k=',i0,'V1=',i0,'.dat')") sites, pts, t, mom, vi
             file_name = trim_name(file_name)
             open(99, file=file_name)
 
             do j = 1, ndv2
-                call lvlpar (frac, nev, cenergy(1:nev,j,1,1), rmean)
+                call lvlpar (frac, nev, cenergy(1:nev,1,j,1), rmean)
                 write(99,*) v2_list(j), rmean
             end do
+            close(99)
+        else if (v1list == 0 .and. v2list == 0) then
+            write (file_name,"('lvl_stat_L=',i0,'N=',i0,'t=',f12.4,'k=',i0,'V1=',i0,'V2=',i0,'.dat')") sites, pts, t, mom, vi, v2i
+            file_name = trim_name(file_name)
+            open(99, file=file_name)
+            call lvlpar (frac, nev, cenergy(1:nev,1,1,1), rmean)
+            write(99,*) v1_list( vi + 1 ), v2_list( v2i + 1 ), rmean
             close(99)
         end if
     end if
