@@ -929,7 +929,6 @@ end subroutine centent
 !            Complex: Entanglement entropy for momentum states          !
 !-----------------------------------------------------------------------!
 
-!subroutine ti_centent(threads, dim, dim2, lr, ll, base, state, eps, k, sites, periods, transl, locs, entropy, singval)
 subroutine ti_centent(threads, dim, dim2, lr, ll, base, state, eps, k, sites, periods, transl, locs, entropy)
 
     implicit none
@@ -939,12 +938,8 @@ subroutine ti_centent(threads, dim, dim2, lr, ll, base, state, eps, k, sites, pe
     double complex, intent(in) :: state(dim)
     double precision, intent(in) :: eps
     double precision, intent(out) :: entropy
-    !double precision, allocatable , intent(out):: singval(:)
 
     double precision, allocatable, save :: singval(:)
-    !double complex :: c(2**ll, 2**lr)
-    !double complex :: cd(2**lr, 2**ll)
-    !double complex :: ccd(2**lr, 2**lr)
     double complex, allocatable, save :: c(:,:)
     double complex, allocatable, save :: cd(:,:)
     double complex, allocatable, save :: ccd(:,:)
@@ -984,14 +979,8 @@ subroutine ti_centent(threads, dim, dim2, lr, ll, base, state, eps, k, sites, pe
     ccd = matmul(cd,c)
 
     call testhermitian (check, 2**lr, ccd, delta)
-    !!$omp critical
-    !print*, 'Diagonalizing...'
-    !print*, ''
     call cfulldiag(.False., 2**lr, ccd, singval)
     !call cfulldiag2(.False., 2**lr, ccd, singval)
-    !print*, 'Finished diagonalization.'
-    !print*, ''
-    !!$omp end critical
     entropy = 0.0d0
 
     !!$omp parallel do num_threads(threads)
@@ -1008,40 +997,6 @@ subroutine ti_centent(threads, dim, dim2, lr, ll, base, state, eps, k, sites, pe
 return
 end subroutine ti_centent
 
-
-
-
-!!----------------------------------------------!
-!!            Level spacing parameter           !
-!!----------------------------------------------!
-!
-!subroutine lvlpar (frac, nev, evals, rmean)
-!
-!    implicit none
-!
-!    integer, intent(in) :: frac, nev
-!    double complex, intent(in) :: evals(nev)
-!    double complex, intent(in) :: evals(nev)
-!    double precision, intent(out) :: rmean
-!    double precision :: diff(nev - 2*(int(nev/frac) -1)), r(nev - 2*(int(nev/frac) -1))
-!    integer :: i = 0, cntr = 0
-!
-!    diff = 0
-!    r = 0
-!    cntr = 0
-!
-!    do i = int(nev/frac), nev - int(nev/frac) - 1
-!        cntr = cntr + 1
-!        diff(cntr) = real(evals(i+1)) - real(evals(i))
-!        if (cntr > 1 .and. max(diff(cntr), diff(cntr - 1)) > 0) then
-!            r(cntr - 1) = min(diff(cntr), diff(cntr - 1)) / max(diff(cntr), diff(cntr - 1))
-!        else if (cntr > 1 .and. max(diff(cntr), diff(cntr - 1)) == 0) then
-!            r(cntr - 1) = 0
-!        end if
-!    end do
-!    rmean = sum(r) / size(r)
-!
-!end subroutine lvlpar
 
 
 !----------------------------------------------!
@@ -1064,8 +1019,6 @@ subroutine lvlpar (frac, nev, evals, rmean)
     diff = 0
     r = 0
     cntr = 0
-
-
 
     do i = int(nev/frac), nev - int(nev/frac)
         cntr = cntr + 1

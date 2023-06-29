@@ -106,10 +106,16 @@ program fragmentation
     do i = 1, 22
         v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
     end do
-    allocate(v2_list(23))
-    do i = 1, 22
-        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
-    end do
+!    allocate(v2_list(23))
+!    do i = 1, 22
+!        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
+!    end do
+!    allocate(v1_list(1))
+!    v1_list(1) = 0
+
+    allocate(v2_list(1))
+
+    v2_list(1) = 0
 
 
     call datetime(0)
@@ -412,87 +418,6 @@ program fragmentation
                 !         Entanglement entropy and IPR          !
                 !-----------------------------------------------!
 
-!                if (ee == 1) then
-!                    print*, 'Entanglement entropy/IPR ... '
-!                    print*, ''
-!                    file_name = "entanglement_entropy_"//parameters
-!                    open(11 + units(thread_num + 1, thread_num2 + 1), file=file_name)
-!                    file_name = "ipr_"//parameters
-!                    open(61 + units(thread_num + 1, thread_num2 + 1), file=file_name)
-!
-!                    if(allocated(ipr)) deallocate(ipr)
-!                    if (allocated(entropy)) deallocate(entropy)
-!                    if (allocated(aventropy)) deallocate(aventropy)
-!
-!                    allocate(ipr(nest))
-!                    allocate(entropy(eecut))
-!                    allocate(aventropy(eecut))
-!
-!                    entropy   = 0.d0
-!                    aventropy = 0.d0
-!
-!                    if (ti == 1) then
-!                        do j = 1, nest
-!!print*, j, ' Eigenvector'
-!                            entropy = 0.d0
-!                            if (ip == 1) then
-!                                if (allocated(weights)) deallocate(weights)
-!                                allocate(weights(ncomp))
-!                                weights = 0.d0
-!                                do i = 1, dimtot
-!                                    if(allstates(i,2) < 0) cycle
-!                                    !weights(comp(allstates(i, 5))) = weights(comp(allstates(i, 5))) +  abs(cstate(allstates(i,2),j,nv+1,nv2+1,ww))**2 * (dble(allstates(i,4)))**(-1)
-!                                    weights(comp(allstates(i, 5))) = weights(comp(allstates(i, 5))) +  abs(eigstate(allstates(i,2),j,ww))**2 * (dble(allstates(i,4)))**(-1)
-!                                end do
-!                                ipr(j) = sum((weights)**2)
-!                            end if
-!                            do la = 1, eecut
-!                                thresh = 0.00001
-!                                !call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), cstate(1:dim_hs,j,nv+1,nv2+1,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
-!                                call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), eigstate(1:dim_hs,j,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
-!                                write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
-!                                aventropy(la) = aventropy(la) + entropy(la)
-!                            end do
-!                        end do
-!                        if (ip == 1) then
-!                            avipr = sum(ipr) / dble(size(ipr))
-!print*, avipr, 'avipr'
-!                            write(61 + units(thread_num + 1, thread_num2 + 1), *) avipr
-!                            close(61 + units(thread_num + 1, thread_num2 + 1))
-!                        end if
-!                    else if (ti == 0) then
-!                        do j = 1, nest
-!                            do la = 1, eecut
-!                                call factorize(dim_hs, basiss, la, bjlr) !Create factorization matrix B_jlr assigning bipartite factorization to each basis state
-!                                !call centent(num_threads, dim_hs, la, sites - la , bjlr, cstate(1:dim_hs,j,nv+1,nv2+1,ww), thresh, entropy(la), singval)
-!                                call centent(num_threads, dim_hs, la, sites - la , bjlr, eigstate(1:dim_hs,j,ww), thresh, entropy(la), singval)
-!                                write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
-!                                write(81 + units(thread_num + 1, thread_num2 + 1), *) singval
-!                                aventropy(la) = aventropy(la) + entropy(la)
-!                                if (allocated(singval)) deallocate(singval)
-!                                if (allocated(bjlr)) deallocate(bjlr)
-!                            end do
-!                        end do
-!                    end if
-!                    aventropy = aventropy / nest
-!                    !if(ti == 1 .and. bc == 'p') totaventropy(1:eecut, nmom, nv+1, nv2+1, ww) = totaventropy(1:eecut, nmom, nv+1, nv2+1, ww) + aventropy
-!                    close(11 + units(thread_num + 1, thread_num2 + 1))
-!                    file_name = "averaged_entanglement_entropy_"//parameters
-!                    open(11 + units(thread_num + 1, thread_num2 + 1), file = file_name)
-!                    do la = 1, eecut
-!                        write(11 + units(thread_num + 1, thread_num2 + 1), *) aventropy(la)
-!                    end do
-!                    close(11 + units(thread_num + 1, thread_num2 + 1))
-!                    print*, 'Finished calculation of entanglement entropy.'
-!                    print*, ''
-!                    if (ip == 1 .and. allocated(ipr) ) deallocate(ipr)
-!                    if( allocated(entropy) ) deallocate(entropy)
-!                    if( allocated(aventropy) ) deallocate(aventropy)
-!                end if
-!            end do !Disorder realization loop
-
-
-
                 if (ee == 1 .or. ip == 1) then
                     if ( ee == 1 ) then
                         print*, 'Entanglement entropy ... '
@@ -507,12 +432,12 @@ program fragmentation
 
                         entropy   = 0.d0
                         aventropy = 0.d0
-                    else if ( ip == 1 ) then
+                    end if
+                    if ( ip == 1 ) then
                         print*, 'IPR ... '
                         print*, ''
                         file_name = "ipr_"//parameters
                         open(61 + units(thread_num + 1, thread_num2 + 1), file=file_name)
-
                         if(allocated(iprv1)) deallocate(iprv1)
                         if(allocated(iprv2)) deallocate(iprv2)
                         allocate(iprv1(nest))
@@ -530,18 +455,17 @@ program fragmentation
                                 weightsv2 = 0.d0
                                 do i = 1, dimtot
                                     if(allstates(i,2) < 0) cycle
-                                    !weights(comp(allstates(i, 5))) = weights(comp(allstates(i, 5))) +  abs(cstate(allstates(i,2),j,nv+1,nv2+1,ww))**2 * (dble(allstates(i,4)))**(-1)
                                     weightsv1(compv1(allstates(i, 5))) = weightsv1(compv1(allstates(i, 5))) +  abs(eigstate(allstates(i,2),j,ww))**2 * (dble(allstates(i,4)))**(-1)
                                     weightsv2(compv2(allstates(i, 5))) = weightsv2(compv2(allstates(i, 5))) +  abs(eigstate(allstates(i,2),j,ww))**2 * (dble(allstates(i,4)))**(-1)
                                 end do
                                 iprv1(j) = sum((weightsv1)**2)
                                 iprv2(j) = sum((weightsv2)**2)
+                                write( 61 + units( thread_num + 1, thread_num2 + 1 ), *) iprv1( j ), iprv2( j )
                             end if
                             if ( ee == 1 ) then
                                 entropy = 0.d0
                                 do la = 1, eecut
                                     thresh = 0.00001
-                                    !call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), cstate(1:dim_hs,j,nv+1,nv2+1,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
                                     call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), eigstate(1:dim_hs,j,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
                                     write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
                                     aventropy(la) = aventropy(la) + entropy(la)
@@ -549,10 +473,13 @@ program fragmentation
                             end if
                         end do
                         if ( ip == 1 ) then
+                            close( 61 + units( thread_num + 1, thread_num2 + 1 ) )
                             aviprv1 = sum(iprv1) / dble(size(iprv1))
                             aviprv2 = sum(iprv2) / dble(size(iprv2))
-                            write(61 + units(thread_num + 1, thread_num2 + 1), *) aviprv1, aviprv2
-                            close(61 + units(thread_num + 1, thread_num2 + 1))
+                            file_name = "avipr_"//parameters
+                            open( 61 + units(thread_num + 1, thread_num2 + 1), file = file_name)
+                            write( 61 + units(thread_num + 1, thread_num2 + 1), *) aviprv1, aviprv2
+                            close( 61 + units(thread_num + 1, thread_num2 + 1))
                         end if
                     else if (ti == 0) then
                         do j = 1, nest
@@ -588,103 +515,6 @@ program fragmentation
                     if (ip == 1 .and. allocated(iprv1) ) deallocate(iprv1)
                     if (ip == 1 .and. allocated(iprv2) ) deallocate(iprv2)
                 end if
-
-
-!                    if (ee == 1) then
-!                        print*, 'Entanglement entropy ... '
-!                        print*, ''
-!                        file_name = "entanglement_entropy_"//parameters
-!                        open(11 + units(thread_num + 1, thread_num2 + 1), file=file_name)
-!                        if (allocated(entropy)) deallocate(entropy)
-!                        if (allocated(aventropy)) deallocate(aventropy)
-!                        allocate(entropy(eecut))
-!                        allocate(aventropy(eecut))
-!                        entropy   = 0.d0
-!                        aventropy = 0.d0
-!                    end if
-!
-!                    if (ip == 1) then
-!                        print*, 'IPR ... '
-!                        print*, ''
-!                        file_name = "ipr_"//parameters
-!                        open(61 + units(thread_num + 1, thread_num2 + 1), file=file_name)
-!                        if(allocated(iprv1)) deallocate(iprv1)
-!                        if(allocated(iprv2)) deallocate(iprv2)
-!                        allocate(iprv1(nest))
-!                        allocate(iprv2(nest))
-!                        iprv1 = 0.d0
-!                        iprv2 = 0.d0
-!                    end if
-!
-!                    if (ti == 1) then
-!                        do j = 1, nest
-!                            if (ip == 1) then
-!                                if (allocated(weightsv1)) deallocate(weightsv1)
-!                                allocate(weightsv1(ncompv1))
-!                                if (allocated(weightsv2)) deallocate(weightsv2)
-!                                allocate(weightsv2(ncompv2))
-!                                weightsv1 = 0.d0
-!                                weightsv2 = 0.d0
-!                                do i = 1, dimtot
-!                                    if(allstates(i,2) < 0) cycle
-!                                    !weights(comp(allstates(i, 5))) = weights(comp(allstates(i, 5))) +  abs(cstate(allstates(i,2),j,nv+1,nv2+1,ww))**2 * (dble(allstates(i,4)))**(-1)
-!                                    weightsv1(compv1(allstates(i, 5))) = weightsv1(compv1(allstates(i, 5))) +  abs(eigstate(allstates(i,2),j,ww))**2 * (dble(allstates(i,4)))**(-1)
-!                                    weightsv2(compv2(allstates(i, 5))) = weightsv2(compv2(allstates(i, 5))) +  abs(eigstate(allstates(i,2),j,ww))**2 * (dble(allstates(i,4)))**(-1)
-!                                end do
-!                                iprv1(j) = sum((weightsv1)**2)
-!                                iprv2(j) = sum((weightsv2)**2)
-!                            end if
-!
-!                            if (ee == 1) then
-!                                entropy = 0.d0
-!                                do la = 1, eecut
-!                                    thresh = 0.00001
-!                                    !call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), cstate(1:dim_hs,j,nv+1,nv2+1,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
-!                                    call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), eigstate(1:dim_hs,j,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
-!                                    write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
-!                                    aventropy(la) = aventropy(la) + entropy(la)
-!                                end do
-!                            end if
-!                        end do
-!                        if (ip == 1) then
-!                            aviprv1 = sum(iprv1) / dble(size(iprv1))
-!                            aviprv2 = sum(iprv2) / dble(size(iprv2))
-!                            write(61 + units(thread_num + 1, thread_num2 + 1), *) aviprv1, aviprv2
-!                            close(61 + units(thread_num + 1, thread_num2 + 1))
-!                        end if
-!
-!                    else if (ti == 0) then
-!                        do j = 1, nest
-!                            do la = 1, eecut
-!                                call factorize(dim_hs, basiss, la, bjlr) !Create factorization matrix B_jlr assigning bipartite factorization to each basis state
-!                                !call centent(num_threads, dim_hs, la, sites - la , bjlr, cstate(1:dim_hs,j,nv+1,nv2+1,ww), thresh, entropy(la), singval)
-!                                call centent(num_threads, dim_hs, la, sites - la , bjlr, eigstate(1:dim_hs,j,ww), thresh, entropy(la), singval)
-!                                write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
-!                                write(81 + units(thread_num + 1, thread_num2 + 1), *) singval
-!                                aventropy(la) = aventropy(la) + entropy(la)
-!                                if (allocated(singval)) deallocate(singval)
-!                                if (allocated(bjlr)) deallocate(bjlr)
-!                            end do
-!                        end do
-!                    end if
-!
-!                    if (ee == 1) then
-!                        aventropy = aventropy / nest
-!                        !if(ti == 1 .and. bc == 'p') totaventropy(1:eecut, nmom, nv+1, nv2+1, ww) = totaventropy(1:eecut, nmom, nv+1, nv2+1, ww) + aventropy
-!                        close(11 + units(thread_num + 1, thread_num2 + 1))
-!                        file_name = "averaged_entanglement_entropy_"//parameters
-!                        open(11 + units(thread_num + 1, thread_num2 + 1), file = file_name)
-!                        do la = 1, eecut
-!                            write(11 + units(thread_num + 1, thread_num2 + 1), *) aventropy(la)
-!                        end do
-!                        close(11 + units(thread_num + 1, thread_num2 + 1))
-!                        print*, 'Finished calculation of entanglement entropy.'
-!                        print*, ''
-!                        if( allocated(entropy) ) deallocate(entropy)
-!                        if( allocated(aventropy) ) deallocate(aventropy)
-!                    end if
-!                    if (ip == 1 .and. allocated(iprv1) ) deallocate(iprv1)
-!                    if (ip == 1 .and. allocated(iprv2) ) deallocate(iprv2)
 
             end do !Disorder realization loop
 
@@ -792,7 +622,6 @@ program fragmentation
     if(allocated(rc)) deallocate(rc)
     if(allocated(rc_off)) deallocate(rc_off)
     if(allocated(rc_di)) deallocate(rc_di)
-!    if(allocated(cstate)) deallocate(cstate)
     if(allocated(eigstate)) deallocate(eigstate)
     if(allocated(cenergy)) deallocate(cenergy)
     if(allocated(evals)) deallocate(evals)

@@ -2,10 +2,10 @@ module module_variables_fragmentation
 
 implicit none
 
-integer, parameter :: nthreads = 7
+integer, parameter :: nthreads = 1
 
-integer, parameter :: ee   = 1
-integer, parameter :: ip   = 1
+integer, parameter :: ee   = 0
+integer, parameter :: ip   = 0
 integer, parameter :: lvlp = 1
 
 integer, parameter :: exact       = 1
