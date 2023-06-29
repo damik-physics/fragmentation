@@ -644,7 +644,6 @@ program fragmentation
     !            else
     !                vv = v1_list(nv + 1)
     !            end if
-    !
     !            write (file_name,"('L=',i0,'N=',i0,'t=',f12.4,'V=',f12.4, &
     !                        'V2=',f12.4,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,vv, &
     !                        v2,dis,eps,ndis,bc
