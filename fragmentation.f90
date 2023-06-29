@@ -485,7 +485,6 @@ program fragmentation
                         do j = 1, nest
                             do la = 1, eecut
                                 call factorize(dim_hs, basiss, la, bjlr) !Create factorization matrix B_jlr assigning bipartite factorization to each basis state
-                                !call centent(num_threads, dim_hs, la, sites - la , bjlr, cstate(1:dim_hs,j,nv+1,nv2+1,ww), thresh, entropy(la), singval)
                                 call centent(num_threads, dim_hs, la, sites - la , bjlr, eigstate(1:dim_hs,j,ww), thresh, entropy(la), singval)
                                 write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
                                 write(81 + units(thread_num + 1, thread_num2 + 1), *) singval
@@ -517,9 +516,6 @@ program fragmentation
                 end if
 
             end do !Disorder realization loop
-
-
-
 
             100 format(1000(F30.20))
             101 format(2000(F30.20))
@@ -554,7 +550,6 @@ program fragmentation
                 do j = 1, n_st
                     do ww = 1, ndis
                         do i = 1, dim_hs
-                            !write(11+units(thread_num+1,thread_num2+1),100) real(cstate(i, j, nv+1, nv2+1, ww)), aimag(cstate(i, j, nv+1, nv2+1, ww))
                             write(11+units(thread_num+1,thread_num2+1),100) real(eigstate(i, j, ww)), aimag(eigstate(i, j, ww))
                         end do
                     end do
