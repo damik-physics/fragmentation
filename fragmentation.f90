@@ -100,7 +100,6 @@ program fragmentation
     !$OMP THREADPRIVATE (nv, nv2)
     nv  = 0
     nv2 = 0
-
     v1list = 1
     v2list = 1
     allocate(v1_list(23))
