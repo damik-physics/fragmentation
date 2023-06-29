@@ -662,6 +662,7 @@ program fragmentation
     !    if(allocated(totaventropy)) deallocate(totaventropy)
     !end if
 
+
     if (ti == 0 .and. bc == 'p') then
         write (parameters,"('L=',i0,'N=',i0,'t=',f12.4,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,dis,eps,ndis,bc
     else
