@@ -673,7 +673,6 @@ program fragmentation
     call printparams(dim, sites, pts, ti, mom, nthreads, dim_hs, nev, ndis, v1list, v2list, &
                      t, dis, dv, vmax, vmin, dv2, v2min, v2max)
 
-
 end program
 
 !------------------------------!
