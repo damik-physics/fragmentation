@@ -61,6 +61,8 @@ program fragmentation
     integer :: v1list = 0
     integer :: v2list = 0
     integer :: eecut = 0
+    integer :: eecuti = 0
+    integer :: eecutf = 0
     integer :: cntr = 0
     integer :: pseudoi = 0
     integer :: ncomp = 0, ncompv1 = 0, ncompv2 = 0
@@ -74,6 +76,7 @@ program fragmentation
     double precision :: varv1    = 0.d0, varv2    = 0.d0
     double precision :: vv = 0, v2 = 0, mu = 0, e0 = 0
 
+    logical :: rvec
     logical :: check
     logical :: ok
 
@@ -102,15 +105,22 @@ program fragmentation
     nv2 = 0
     v1list = 1
     v2list = 1
-    allocate(v1_list(23))
-    do i = 1, 22
-        v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    !allocate(v1_list(23))
+    !do i = 1, 22
+    !    v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    !end do
+    !allocate(v2_list(23))
+    !do i = 1, 22
+    !    v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    !end do
+    allocate(v1_list(116))
+    do i = 0, 115
+        v1_list(i+1) = 0.1 * 1.5**(real(i)/5)
     end do
-    allocate(v2_list(23))
-    do i = 1, 22
-        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    allocate(v2_list(116))
+    do i = 0, 115
+        v2_list(i+1) = 0.1 * 1.5**(real(i)/5)
     end do
-
 
     call datetime(0)
 
@@ -140,8 +150,13 @@ program fragmentation
 
     call stepunits(1, ndv, ndv2, units2)
 
-    if (ee == 1) eecut = int(sites/2) !sites - 1
-
+    rvec = .True.
+    if (ee == 0 .and. ip == 0) rvec = .False.
+    !if (ee == 1) eecut = int(sites/2) !sites - 1
+    if (ee == 1) then
+        eecutf = int(sites/2) !sites - 1
+        eecuti = int(sites/2)
+    end if
     !if (ee == 1 .and. ti == 1 .and. bc == 'p') then
     !    if (allocated(totaventropy)) deallocate(totaventropy)
     !    allocate(totaventropy(eecut, sites, ndv, ndv2, ndis))
@@ -393,10 +408,10 @@ program fragmentation
                 print*, 'Diagonalizing Hamiltonian...'
                 print*, ''
                 if(full == 1) then !Full diagonalization
-                    !$omp critical
+                    !!$omp critical
                     call cfulldiag(rvec, dim_hs, ham_d, evals)
                     !call cfulldiag2(rvec, dim_hs, ham_d, evals)
-                    !$omp end critical
+                    !!$omp end critical
                     cenergy(1:nev,nv+1,nv2+1,ww) = evals
                     do i = 1, nest
                         eigstate(1:dim_hs,i,ww) = ham_d(1:dim_hs,i)
@@ -420,8 +435,8 @@ program fragmentation
 
                         if (allocated(entropy)) deallocate(entropy)
                         if (allocated(aventropy)) deallocate(aventropy)
-                        allocate(entropy(eecut))
-                        allocate(aventropy(eecut))
+                        allocate( entropy( eecutf - eecuti + 1 ) )
+                        allocate( aventropy(  eecutf - eecuti + 1 ) )
 
                         entropy   = 0.d0
                         aventropy = 0.d0
@@ -457,11 +472,16 @@ program fragmentation
                             end if
                             if ( ee == 1 ) then
                                 entropy = 0.d0
-                                do la = 1, eecut
+                                cntr    = 1
+                                do la = eecuti, eecutf
                                     thresh = 0.00001
-                                    call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), eigstate(1:dim_hs,j,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
-                                    write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
-                                    aventropy(la) = aventropy(la) + entropy(la)
+                                    !call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), eigstate(1:dim_hs,j,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(la))
+                                    call ti_centent(num_threads, dim_hs, dimtot, la, sites - la , allstates(1:dimtot,1), eigstate(1:dim_hs,j,ww), thresh, mom, sites, allstates(1:dimtot,4), allstates(1:dimtot,3), allstates(1:dimtot,2), entropy(cntr))
+                                    !write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(la)
+                                    write(11 + units(thread_num + 1, thread_num2 + 1), *) entropy(cntr)
+                                    !aventropy(la) = aventropy(la) + entropy(la)
+                                    aventropy(cntr) = aventropy(cntr) + entropy(cntr)
+                                    cntr            = cntr + 1
                                 end do
                             end if
                         end do
@@ -473,16 +493,16 @@ program fragmentation
                                 varv1 = varv1 + ( iprv1( j ) - aviprv1 )**2
                                 varv2 = varv2 + ( iprv2( j ) - aviprv2 )**2
                             end do
-                            varv1 = varv1/nest
-                            varv2 = varv2/nest
+                            varv1 = varv1 / nest
+                            varv2 = varv2 / nest
                             file_name = "avipr_"//parameters
-                            open( 61 + units(thread_num + 1, thread_num2 + 1), file = file_name)
-                            write( 61 + units(thread_num + 1, thread_num2 + 1), *) aviprv1, aviprv2
-                            close( 61 + units(thread_num + 1, thread_num2 + 1))
+                            open( 61 + units(thread_num + 1, thread_num2 + 1 ), file = file_name)
+                            write( 61 + units(thread_num + 1, thread_num2 + 1 ), *) aviprv1, aviprv2
+                            close( 61 + units(thread_num + 1, thread_num2 + 1 ) )
                             file_name = "variance_"//parameters
-                            open( 61 + units(thread_num + 1, thread_num2 + 1), file = file_name)
-                            write( 61 + units(thread_num + 1, thread_num2 + 1), *) varv1, varv2
-                            close( 61 + units(thread_num + 1, thread_num2 + 1))
+                            open( 61 + units(thread_num + 1, thread_num2 + 1 ), file = file_name)
+                            write( 61 + units(thread_num + 1, thread_num2 + 1 ), *) varv1, varv2
+                            close( 61 + units(thread_num + 1, thread_num2 + 1 ) )
                         end if
                     else if (ti == 0) then
                         do j = 1, nest
@@ -503,19 +523,22 @@ program fragmentation
                         close(11 + units(thread_num + 1, thread_num2 + 1))
                         file_name = "averaged_entanglement_entropy_"//parameters
                         open(11 + units(thread_num + 1, thread_num2 + 1), file = file_name)
-                        do la = 1, eecut
-                            write(11 + units(thread_num + 1, thread_num2 + 1), *) aventropy(la)
+                        !do la = 1, eecut
+                        cntr  = 1
+                        do la = eecuti, eecutf
+                            write(11 + units(thread_num + 1, thread_num2 + 1), *) aventropy(cntr)
+                            cntr = cntr + 1
                         end do
                         close(11 + units(thread_num + 1, thread_num2 + 1))
                         print*, 'Finished calculation of entanglement entropy.'
                         print*, ''
-                        if( allocated(entropy) ) deallocate(entropy)
-                        if( allocated(aventropy) ) deallocate(aventropy)
+                        if( allocated( entropy ) ) deallocate( entropy )
+                        if( allocated( aventropy ) ) deallocate( aventropy )
 
                     end if
 
-                    if (ip == 1 .and. allocated(iprv1) ) deallocate(iprv1)
-                    if (ip == 1 .and. allocated(iprv2) ) deallocate(iprv2)
+                    if (ip == 1 .and. allocated( iprv1 ) ) deallocate( iprv1 )
+                    if (ip == 1 .and. allocated( iprv2 ) ) deallocate( iprv2 )
                 end if
 
             end do !Disorder realization loop

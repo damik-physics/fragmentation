@@ -2,9 +2,9 @@ module module_variables_fragmentation
 
 implicit none
 
-integer, parameter :: nthreads = 1
+integer, parameter :: nthreads = 7
 
-integer, parameter :: ee   = 0
+integer, parameter :: ee   = 1
 integer, parameter :: ip   = 1
 integer, parameter :: lvlp = 1
 
@@ -43,7 +43,7 @@ double precision, parameter :: one   = 1.0D+0
 
 logical, parameter :: dynamic = .False.
 logical, parameter :: nested  = .True.
-logical, parameter :: rvec    = .True.
+!logical, parameter :: rvec    = .True.
 
 character, parameter :: bc*1     = 'p' !'p'
 character, parameter :: switch*2 = 'SA' !'LA'

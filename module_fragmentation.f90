@@ -386,18 +386,18 @@ subroutine slhopping_serial(dim, sites, bc, ti, ip, eps, t, basis, rc, ham, nnz,
 
 
     do j = 1, size(basis)
-        cntrj = n_temp !Starting point in temp_rc for matrix elements of row 'j' to look for double entries with the same column 'loc'
-        cntr = 0 !Counts the number of already calculated matrix elements of each row 'j'
+        cntrj = n_temp      !Starting point in temp_rc for matrix elements of row 'j' to look for double entries with the same column 'loc'
+        cntr  = 0           !Counts the number of already calculated matrix elements of each row 'j'
         do m = 0, sites - 1 ! m goes through all digits of basis states
-            if (m == sites - 1 .and. bc /= 'p') cycle
-            mask = ibset(ibset(0, m),mod(m + 1, sites))  !Procedure suggested in Lin-paper. Sets a mask with only non-zero components on sites i=m+1 and i=m+2
-            k = iand(mask, basis(j)) !K records the occupancy of those two sites with up-spins
-            l = ieor(mask, k) !L records whether hopping is allowed or not. If it's 0 or the same as the mask, hopping is not allowed. If it is allowed the occupations of both sites (01 or 10) are swapped (10 or 01)
-            if (l == 0 .or. l == mask) then
+            if (m == sites - 1 .and. bc /= 'p' ) cycle
+            mask = ibset( ibset(0, m), mod(m + 1, sites ) )  !Procedure suggested in Lin-paper. Sets a mask with only non-zero components on sites i=m+1 and i=m+2
+            k = iand( mask, basis( j ) ) !K records the occupancy of those two sites with up-spins
+            l = ieor( mask, k ) !L records whether hopping is allowed or not. If it's 0 or the same as the mask, hopping is not allowed. If it is allowed the occupations of both sites (01 or 10) are swapped (10 or 01)
+            if (l == 0 .or. l == mask ) then
                 cycle
             end if
 
-            if(ti == 1 .and. bc == 'p') then
+            if( ti == 1 .and. bc == 'p' ) then
                 call representative(basis(j) - k + l, sites, rep, ntrans) !Finds the representative of scattered state in momentum orbit and determines the number of translations 'ntrans' needed to map to representative.
             else
                 rep = basis(j) - k + l
@@ -463,6 +463,267 @@ subroutine slhopping_serial(dim, sites, bc, ti, ip, eps, t, basis, rc, ham, nnz,
     print*, ''
 
 end subroutine slhopping_serial
+
+
+!-----------------------------------------!
+!            Adjacency matrix             !
+!-----------------------------------------!
+
+!
+!subroutine adjacency(row, col, dim, sites, bc, basis, adj)
+!
+!    implicit none
+!
+!    integer(kind=8), intent(in) :: dim, basis(dim)
+!    integer, intent(in) :: sites, row, col
+!    character, intent(in) :: bc*1
+!
+!    integer, intent(out) :: adj
+!
+!    integer(kind=8) :: loc = 0
+!    integer(kind=8) :: rep = 0
+!    integer :: pntr = 0
+!    integer :: mask = 0
+!    integer :: i = 0 , j = 0 , m = 0 , k = 0 , l = 0 , q = 0
+!
+!    adj = 0
+!    j   = row
+!
+!    do m = 0, sites - 1 ! m goes through all digits of basis states
+!        if (m == sites - 1 .and. bc /= 'p' ) cycle
+!        mask = ibset( ibset(0, m), mod(m + 1, sites ) )  !Procedure suggested in Lin-paper. Sets a mask with only non-zero components on sites i=m+1 and i=m+2
+!        k = iand( mask, basis( j ) ) !K records the occupancy of those two sites with up-spins
+!        l = ieor( mask, k ) !L records whether hopping is allowed or not. If it's 0 or the same as the mask, hopping is not allowed. If it is allowed the occupations of both sites (01 or 10) are swapped (10 or 01)
+!        if (l == 0 .or. l == mask ) then
+!            cycle
+!        end if
+!        rep = basis(j) - k + l
+!        call findstate(dim, rep, basis, loc) !Finds the location of representative in basis
+!        if ( loc /= col ) cycle
+!        if (ti == 0 .and. ip == 1 .and. btest(basis(j), modulo(m - 1, sites) ) == btest(basis(j), modulo(m + 2, sites))) adj = 1
+!        if (ti == 0 .and. ip == 2 .and. btest(basis(j), modulo(m - 2, sites) ) + btest(basis(j), modulo(m + 2, sites) ) == btest(basis(j), modulo(m - 1, sites)) + btest(basis(j), modulo(m + 3, sites)) ) adj = 1
+!        exit
+!    end do
+!
+!    return
+!
+!end subroutine adjacency
+!
+
+
+
+
+
+
+!---------------------------------------------------------!
+!            Find connected components (sparse)           !
+!---------------------------------------------------------!
+
+!
+!subroutine digraph_adj_components2 ( adj, lda, nnode, ncomp, comp, dad, order )
+!
+!!*****************************************************************************
+!!
+!!! DIGRAPH_ADJ_COMPONENTS finds the strongly connected components of a digraph.
+!!
+!!  Discussion:
+!!
+!!    A digraph is a directed graph.
+!!
+!!    A strongly connected component of a directed graph is the largest
+!!    set of nodes such that there is a directed path from any node to
+!!    any other node in the same component.
+!!
+!!  Licensing:
+!!
+!!    This code is distributed under the GNU LGPL license.
+!!
+!!  Modified:
+!!
+!!    15 April 1999
+!!
+!!  Reference:
+!!
+!!    K Thulasiraman, M Swamy,
+!!    Graph Theory and Algorithms,
+!!    John Wiley, New York, 1992.
+!!
+!!  Parameters:
+!!
+!!    Input, integer ( kind = 4 ) ADJ(LDA,NNODE), the adjacency information.
+!!    ADJ(I,J) is 1 if there is a direct link from node I to node J.
+!!
+!!    Input, integer ( kind = 4 ) LDA, the leading dimension of ADJ.
+!!
+!!    Input, integer ( kind = 4 ) NNODE, the number of nodes.
+!!
+!!    Output, integer ( kind = 4 ) NCOMP, the number of strongly connected
+!!    components.
+!!
+!!    Output, integer ( kind = 4 ) COMP(NNODE), lists the connected component
+!!    to which each node belongs.
+!!
+!!    Output, integer ( kind = 4 ) DAD(NNODE), the father array for the depth
+!!    first search trees.  DAD(I) = 0 means that node I is the root of
+!!    one of the trees.  DAD(I) = J means that the search descended
+!!    from node J to node I.
+!!
+!!    Output, integer ( kind = 4 ) ORDER(NNODE), the order in which the nodes
+!!    were traversed, from 1 to NNODE.
+!!
+!  implicit none
+!
+!!  integer ( kind = 4 ) lda
+!!  integer ( kind = 4 ) nnode
+!  integer ( kind = 8 ) lda
+!  integer ( kind = 8 ) nnode
+!
+!  integer ( kind = 4 ) adj(lda,nnode)
+!  integer ( kind = 4 ) comp(nnode)
+!  integer ( kind = 4 ) dad(nnode)
+!  integer ( kind = 4 ) iorder
+!  integer ( kind = 4 ) lowlink(nnode)
+!  integer ( kind = 4 ) mark(nnode)
+!  integer ( kind = 4 ) ncomp
+!  integer ( kind = 4 ) nstack
+!  integer ( kind = 4 ) order(nnode)
+!  integer ( kind = 4 ) point(nnode)
+!  integer ( kind = 4 ) stack(nnode)
+!  integer ( kind = 4 ) v
+!  integer ( kind = 4 ) w
+!  integer ( kind = 4 ) x
+!!
+!!  Initialization.
+!!
+!  comp(1:nnode) = 0
+!  dad(1:nnode) = 0
+!  order(1:nnode) = 0
+!  lowlink(1:nnode) = 0
+!  mark(1:nnode) = 0
+!  point(1:nnode) = 0
+!
+!  iorder = 0
+!  nstack = 0
+!  ncomp = 0
+!!
+!!  Select any node V not stored in the stack, that is, with MARK(V) = 0.
+!!
+!  do
+!
+!    v = 0
+!
+!    do
+!
+!      v = v + 1
+!
+!      if ( nnode < v ) then
+!        !adj(1:nnode,1:nnode) = abs( adj(1:nnode,1:nnode) )
+!        return
+!      end if
+!
+!      if ( mark(v) /= 1 ) then
+!        exit
+!      end if
+!
+!    end do
+!
+!    iorder = iorder + 1
+!
+!    order(v) = iorder
+!    lowlink(v) = iorder
+!    mark(v) = 1
+!
+!    nstack = nstack + 1
+!    stack(nstack) = v
+!    point(v) = 1
+!
+!30  continue
+!!
+!!  Consider each node W.
+!!
+!    do w = 1, nnode
+!!
+!!  Is there an edge (V,W) and has it not been examined yet?
+!!
+!    call adjacency(row, col, dim, sites, bc, basis, adj)
+!      if ( 0 < adj ) then
+!!      if ( 0 < adj(v,w) ) then
+!
+!        !adj(v,w) = - adj(v,w)
+!        ijarr(cntr,1) = v
+!        ijarr(cntr,2) = w
+!        cntr = cntr + 1
+!!
+!!  Is the node on the other end of the edge undiscovered yet?
+!!
+!        if ( mark(w) == 0 ) then
+!
+!          iorder = iorder + 1
+!          order(w) = iorder
+!          lowlink(w) = iorder
+!          dad(w) = v
+!          mark(w) = 1
+!
+!          nstack = nstack + 1
+!          stack(nstack) = w
+!          point(w) = 1
+!
+!          v = w
+!
+!        else if ( mark(w) == 1 ) then
+!
+!          if ( order(w) < order(v) .and. point(w) == 1 ) then
+!            lowlink(v) = min ( lowlink(v), order(w) )
+!          end if
+!
+!        end if
+!
+!        go to 30
+!
+!      end if
+!
+!    end do
+!
+!    if ( lowlink(v) == order(v) ) then
+!
+!      ncomp = ncomp + 1
+!
+!      do
+!
+!        if ( nstack <= 0 ) then
+!          write ( *, '(a)' ) ' '
+!          write ( *, '(a)' ) 'DIGRAPH_ADJ_COMPONENTS - Fatal error!'
+!          write ( *, '(a)' ) '  Illegal stack reference.'
+!          stop
+!        end if
+!
+!        x = stack(nstack)
+!        nstack = nstack - 1
+!
+!        point(x) = 0
+!        comp(x) = ncomp
+!
+!        if ( x == v ) then
+!          exit
+!        end if
+!
+!      end do
+!
+!    end if
+!
+!    if ( dad(v) /= 0 ) then
+!      lowlink(dad(v)) = min ( lowlink(dad(v)), lowlink(v) )
+!      v = dad(v)
+!      go to 30
+!    end if
+!
+!  end do
+!
+!  return
+!end
+!
+
+
 
 
 
@@ -1142,7 +1403,9 @@ subroutine cfulldiag(eigvec, dim, mat, evals)
         allocate(work(lwmax))
         lwork = -1
         if (jobz == 'V') then
+            !$omp critical
             call zheev (jobz, 'U', dim, matloc, dim, evalsloc, work, lwork, rwork, info)
+            !$omp end critical
         else if (jobz == 'N') then
             call zheev_2stage ('N', 'U', dim, matloc, lda, evalsloc, work, lwork, rwork, info)
         end if
@@ -1155,7 +1418,9 @@ subroutine cfulldiag(eigvec, dim, mat, evals)
 
         !print*, 'Running diagoalization routine ...'
         if (jobz == 'V') then
+            !$omp critical
             call zheev (jobz, 'U', dim, matloc, dim, evalsloc, work, lwork, rwork, info)
+            !$omp end critical
         else if (jobz == 'N') then
             call zheev_2stage ('N', 'U', dim, matloc, lda, evalsloc, work, lwork, rwork, info)
         end if
