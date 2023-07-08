@@ -31,7 +31,7 @@ subroutine slsetvars(dim, dynamic, nested, nthreads, n, pts, threads, filling)
     !$ call omp_set_dynamic(dynamic)
     !$ call omp_set_nested(nested)
 
-    call KMP_SET_STACKSIZE_S(1000000000)
+    call KMP_SET_STACKSIZE_S(1000000000) !SPARTAN
 
     n = nex
 

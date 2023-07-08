@@ -42,6 +42,7 @@ program fragmentation
     integer(kind=8) :: momdim = 0
     integer(kind=8) :: dimtot = 0
     integer(kind=8) :: rep = 0
+    !integer :: nthreads !SPARTAN
     integer :: n = 0, nev = 0, ncv = 0, sites = 0
     integer :: pts = 0
     integer :: ndv = 0, ndv2 = 0
@@ -129,6 +130,7 @@ program fragmentation
     write(*,*) ' Exact diagonalization '
     write(*,*) '--------------------------------------------------------------------------------------------------'
 
+    !nthreads = nthreadsext !SPARTAN
     call slsetvars(1, dynamic, nested, nthreads, sites, pts, num_threads, filling)
     if ( modulo( int( sites )/2, 2 ) == 0 ) pts = int( sites/2 ) - 1
 
