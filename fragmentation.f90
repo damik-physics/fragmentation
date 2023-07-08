@@ -68,7 +68,7 @@ program fragmentation
     integer :: pseudoi = 0
     integer :: ncomp = 0, ncompv1 = 0, ncompv2 = 0
     integer :: vi  = 0 !SPARTAN: COMMENT OUT, EXTERNALLY PROVIDED
-    integer :: v2i = 0 !SPARTAN: COMMENT OUT, EXTERNALLY PROVIDED
+    !integer :: v2i = 0 !SPARTAN: COMMENT OUT, EXTERNALLY PROVIDED
 
     double precision :: delta    = 0.d0
     double precision :: rmean    = 0.d0
@@ -104,24 +104,24 @@ program fragmentation
     !$OMP THREADPRIVATE (nv, nv2)
     nv  = 0
     nv2 = 0
-    v1list = 1
-    v2list = 1
-    allocate(v1_list(23))
-    do i = 1, 22
-        v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    v1list = 1 !SPARTAN
+    v2list = 0 !SPARTAN
+    !allocate(v1_list(23))
+    !do i = 1, 22
+    !    v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    !end do
+    !allocate(v2_list(23))
+    !do i = 1, 22
+    !    v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    !end do
+    allocate(v1_list(116))
+    do i = 0, 115
+        v1_list(i+1) = 0.1 * 1.5**(real(i)/5)
     end do
-    allocate(v2_list(23))
-    do i = 1, 22
-        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
+    allocate(v2_list(116))
+    do i = 0, 115
+        v2_list(i+1) = 0.1 * 1.5**(real(i)/5)
     end do
-!    allocate(v1_list(116))
-!    do i = 0, 115
-!        v1_list(i+1) = 0.1 * 1.5**(real(i)/5)
-!    end do
-!    allocate(v2_list(116))
-!    do i = 0, 115
-!        v2_list(i+1) = 0.1 * 1.5**(real(i)/5)
-!    end do
 
     call datetime(0)
 
@@ -158,11 +158,6 @@ program fragmentation
         eecutf = int(sites/2) !sites - 1
         eecuti = int(sites/2)
     end if
-    !if (ee == 1 .and. ti == 1 .and. bc == 'p') then
-    !    if (allocated(totaventropy)) deallocate(totaventropy)
-    !    allocate(totaventropy(eecut, sites, ndv, ndv2, ndis))
-    !    totaventropy = 0
-    !end if
 
     !do mom = -int(sites/2) + 1, int(sites/2) !Momentum loop
     nmom = nmom + 1
@@ -261,7 +256,8 @@ program fragmentation
     do nv2 = 0, ndv2-1, 1
         if (v2list == 0) then
             !v2 = v2min + nv2*dv2
-            v2  = 0! v2ext !SPARTAN
+            !v2  = 0! v2ext !SPARTAN
+            v2  = v2_list(v2i + 1)! SPARTAN
         else
             v2 = v2_list(nv2 + 1)
         end if
@@ -281,7 +277,8 @@ program fragmentation
 
             if (v1list == 0) then
                 !vv = vmin + nv*dv
-                vv = 0!vext !SPARTAN
+                !vv = 0!vext !SPARTAN
+                vv = v1_list(vi + 1)!vext !SPARTAN
             else
                 vv = v1_list(nv + 1)
             end if
@@ -306,9 +303,9 @@ program fragmentation
                         'V2=',i0,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,nv, &
                         nv2,dis,eps,ndis,bc
                 else
-                    write (parameters,"('L=',i0,'N=',i0,'t=',f12.4,'V=',f12.4, &
-                        'V2=',f12.4,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,vv, &
-                        v2,dis,eps,ndis,bc
+                    write (parameters,"('L=',i0,'N=',i0,'t=',f12.4,'V=',i0, &
+                        'V2=',i0,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,vi, &
+                        v2i,dis,eps,ndis,bc
                 end if
             else
                 if ( v1list == 1 .and. v2list == 0 ) then
@@ -324,9 +321,9 @@ program fragmentation
                         'V2=',i0,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,mom,t,nv, &
                         nv2,dis,eps,ndis,bc
                 else
-                    write (parameters,"('L=',i0,'N=',i0,'t=',f12.4,'V=',f12.4, &
-                        'V2=',f12.4,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,vv, &
-                        v2,dis,eps,ndis,bc
+                    write (parameters,"('L=',i0,'N=',i0,'t=',f12.4,'V=',i0, &
+                        'V2=',i0,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,vi, &
+                        v2i,dis,eps,ndis,bc
                 end if
             end if
             parameters=trim_name(parameters)
@@ -380,12 +377,10 @@ program fragmentation
                         print*, ''
                         file_name = "entanglement_entropy_"//parameters
                         open(11 + units(thread_num + 1, thread_num2 + 1), file=file_name)
-
                         if (allocated(entropy)) deallocate(entropy)
                         if (allocated(aventropy)) deallocate(aventropy)
                         allocate( entropy( eecutf - eecuti + 1 ) )
                         allocate( aventropy(  eecutf - eecuti + 1 ) )
-
                         entropy   = 0.d0
                         aventropy = 0.d0
                     end if
@@ -416,7 +411,6 @@ program fragmentation
                                 end do
                                 iprv1(j) = sum((weightsv1)**2)
                                 iprv2(j) = sum((weightsv2)**2)
-                                !write( 61 + units( thread_num + 1, thread_num2 + 1 ), *) iprv1( j ), iprv2( j )
                             end if
                             if ( ee == 1 ) then
                                 entropy = 0.d0
@@ -434,7 +428,6 @@ program fragmentation
                             end if
                         end do
                         if ( ip == 1 ) then
-                            !close( 61 + units( thread_num + 1, thread_num2 + 1 ) )
                             aviprv1 = sum(iprv1) / dble(size(iprv1))
                             aviprv2 = sum(iprv2) / dble(size(iprv2))
                             do j = 1, nest
@@ -482,13 +475,10 @@ program fragmentation
                         print*, ''
                         if( allocated( entropy ) ) deallocate( entropy )
                         if( allocated( aventropy ) ) deallocate( aventropy )
-
                     end if
-
                     if (ip == 1 .and. allocated( iprv1 ) ) deallocate( iprv1 )
                     if (ip == 1 .and. allocated( iprv2 ) ) deallocate( iprv2 )
                 end if
-
             end do !Disorder realization loop
 
             100 format(1000(F30.20))
@@ -570,7 +560,6 @@ program fragmentation
             write (file_name,"('lvl_stat_L=',i0,'N=',i0,'t=',f12.4,'k=',i0,'V1=',i0,'.dat')") sites, pts, t, mom, vi
             file_name = trim_name(file_name)
             open(99, file=file_name)
-
             do j = 1, ndv2
                 call lvlpar (frac, nev, cenergy(1:nev,1,j,1), rmean)
                 write(99,*) v2_list(j), rmean
@@ -606,43 +595,9 @@ program fragmentation
 
     print*, 'Finished calculation.'
     print*, ''
-!    end do !Momentum loop
+    !end do !Momentum loop
 
     116 continue
-
-    !if (ee == 1 .and. ti == 1 .and. bc == 'p' .and. nmom > 1) then
-    !    if (allocated(totavtemp)) deallocate(totavtemp)
-    !    allocate (totavtemp(eecut))
-    !    do nv2 = 0, ndv2-1, 1
-    !        if (v2list == 0) then
-    !            v2 = v2min + nv2*dv2
-    !        else
-    !            v2 = v2_list(nv2 + 1)
-    !        end if
-    !
-    !        do nv = 0, ndv-1, 1
-    !            if (v1list == 0) then
-    !                vv = vmin + nv*dv
-    !            else
-    !                vv = v1_list(nv + 1)
-    !            end if
-    !            write (file_name,"('L=',i0,'N=',i0,'t=',f12.4,'V=',f12.4, &
-    !                        'V2=',f12.4,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,vv, &
-    !                        v2,dis,eps,ndis,bc
-    !            file_name = trim_name(file_name)
-    !            file_name = "tot_averaged_entanglement_entropy_"//file_name
-    !            open(11, file = file_name)
-    !            totavtemp = 0
-    !            do nmom = 1, sites
-    !                totavtemp = totavtemp + totaventropy(1:eecut, nmom, nv+1, nv2+1, 1)
-    !            end do
-    !            totavtemp = totavtemp / sites
-    !            write(11, *) totavtemp
-    !            close(11)
-    !        end do
-    !    end do
-    !    if(allocated(totaventropy)) deallocate(totaventropy)
-    !end if
 
     if (ti == 0 .and. bc == 'p') then
         write (parameters,"('L=',i0,'N=',i0,'t=',f12.4,'W=',f12.4,'eps=',f12.4,'ndis=',i0,'BC=',a,'.dat')") sites,pts,t,dis,eps,ndis,bc
