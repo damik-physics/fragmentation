@@ -17,6 +17,7 @@ program fragmentation
     integer, allocatable :: rc_di(:)
     integer, allocatable :: rc(:,:)
     integer, allocatable :: adj(:,:), fakeadj(:,:)
+    integer, allocatable :: adjpntr(:), adjcol(:), adj_coo(:,:), adj_temp(:,:)
     integer, allocatable :: comp(:), compv1(:), compv2(:)
     integer, allocatable :: compsize(:,:)
     integer, allocatable :: dad(:)
@@ -32,7 +33,7 @@ program fragmentation
     double precision, allocatable :: evals(:)
     double precision, allocatable :: weightsv1(:), weightsv2(:)
     double precision, allocatable :: singval(:), entropy(:), aventropy(:), totaventropy(:,:,:,:,:), totavtemp(:)
-    double precision, allocatable :: iprv1(:), iprv2(:)
+    double precision, allocatable :: iprv1(:), iprv2(:), dummy(:)
     double precision, allocatable :: v1_list(:)
     double precision, allocatable :: v2_list(:)
 
@@ -105,22 +106,22 @@ program fragmentation
     nv2 = 0
     v1list = 1
     v2list = 1
-    !allocate(v1_list(23))
-    !do i = 1, 22
-    !    v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
-    !end do
-    !allocate(v2_list(23))
-    !do i = 1, 22
-    !    v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
-    !end do
-    allocate(v1_list(116))
-    do i = 0, 115
-        v1_list(i+1) = 0.1 * 1.5**(real(i)/5)
+    allocate(v1_list(23))
+    do i = 1, 22
+        v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
     end do
-    allocate(v2_list(116))
-    do i = 0, 115
-        v2_list(i+1) = 0.1 * 1.5**(real(i)/5)
+    allocate(v2_list(23))
+    do i = 1, 22
+        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
     end do
+!    allocate(v1_list(116))
+!    do i = 0, 115
+!        v1_list(i+1) = 0.1 * 1.5**(real(i)/5)
+!    end do
+!    allocate(v2_list(116))
+!    do i = 0, 115
+!        v2_list(i+1) = 0.1 * 1.5**(real(i)/5)
+!    end do
 
     call datetime(0)
 
@@ -175,60 +176,7 @@ program fragmentation
     if (bc == 'o') ti = 0
     call slbasis(25, sites, pts, dim_hs, permutations)
 
-    if (ip == 1) then
-        do k = 1, 2
-            if ( not( allocated( adj ) ) )   allocate( adj( dim_hs,dim_hs ) )
-            if ( not( allocated( comp ) ) )  allocate( comp( dim_hs ) )
-            if ( not( allocated( dad ) ) )   allocate( dad( dim_hs ) )
-            if ( not( allocated( order ) ) ) allocate( order( dim_hs ) )
-            if ( not( allocated( periods ) ) ) allocate( periods( dim_hs ) )
-            adj     = 0
-            comp    = 0
-            dad     = 0
-            order   = 0
-            periods = 0
-            !Generate first adjacency matrix
-            call slhopping_serial ( dim_hs, sites, bc, 0, k, eps, t, permutations, pseudo_rc, pseudo_ham, pseudoi, mom, periods, adj )
-            call digraph_adj_components ( adj, dim_hs, dim_hs, ncomp, comp, dad, order )
-            deallocate( periods )
-            !Generate list 'compsize' assigning size of CC, bond number of CC and a representative state
-            if( allocated( compsize ) ) deallocate( compsize )
-            allocate( compsize( ncomp, 3 ) ) !1st col: Size of CC; 2nd col: Bond number of CC; 3rd col: Representative of CC; Row # = CC #
-            compsize = 0
-            do i = 1, dim_hs
-                if ( compsize( comp(i), 1 ) == 0 ) then
-                    compsize( comp(i), 3 ) = i
-                    do j = 0, sites - 1
-                        if ( k == 1 .and. btest( permutations(i), j ) .and. btest( permutations(i), modulo(j + 1, sites))) compsize(comp(i), 2) = compsize(comp(i), 2) + 1
-                        if ( k == 2 .and. btest( permutations(i), j ) .and. btest( permutations(i), modulo(j + 2, sites))) compsize(comp(i), 2) = compsize(comp(i), 2) + 1
-                    end do
-                end if
-                compsize( comp(i), 1 ) = compsize( comp(i), 1 ) + 1
-            end do
-            do i = 1, ncomp - 1
-                do j = i + 1, ncomp
-                    if ( compsize( i, 1 ) == compsize( j, 1 ) .and. compsize( i, 2 ) == compsize( j, 2 ) ) then
-                        adj( compsize( i, 3 ), compsize( j, 3 ) ) = 1
-                        adj( compsize( j, 3 ), compsize( i, 3 ) ) = 1
-                    end if
-                end do
-            end do
-            ncomp = 0
-            comp  = 0
-            dad   = 0
-            order = 0
-            !Calculate second adjacency matrix
-            call digraph_adj_components ( adj, dim_hs, dim_hs, ncomp, comp, dad, order )
-            deallocate( dad, order, pseudo_ham, pseudo_rc  )
-            if ( k == 1 ) then
-                ncompv1 = ncomp
-                compv1 = comp
-            else if ( k == 2 ) then
-                ncompv2 = ncomp
-                compv2 = comp
-            end if
-        end do
-    end if
+    call scc(dim_hs, sites, bc, permutations, ncompv1, ncompv2, compv1, compv2)
 
     if (ti == 1 .and. bc == 'p') then
         call momentumbasis(dim_hs, sites, mom, permutations, momdim, mombasis, periods, nonreps)

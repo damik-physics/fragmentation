@@ -384,7 +384,6 @@ subroutine slhopping_serial(dim, sites, bc, ti, ip, eps, t, basis, rc, ham, nnz,
     allocate(temp(arrsize))
     allocate(temp_rc(arrsize,2))
 
-
     do j = 1, size(basis)
         cntrj = n_temp      !Starting point in temp_rc for matrix elements of row 'j' to look for double entries with the same column 'loc'
         cntr  = 0           !Counts the number of already calculated matrix elements of each row 'j'
@@ -430,8 +429,12 @@ subroutine slhopping_serial(dim, sites, bc, ti, ip, eps, t, basis, rc, ham, nnz,
                     end if
                     temp_rc(n_temp,1) = j !Row of matrix element
                     temp_rc(n_temp,2) = loc !Column of matrix element
-                    if (ti == 0 .and. ip == 1 .and. btest(basis(j), modulo(m - 1, sites) ) == btest(basis(j), modulo(m + 2, sites))) adj(j,loc) = 1
-                    if (ti == 0 .and. ip == 2 .and. btest(basis(j), modulo(m - 2, sites) ) + btest(basis(j), modulo(m + 2, sites) ) == btest(basis(j), modulo(m - 1, sites)) + btest(basis(j), modulo(m + 3, sites)) ) adj(j,loc) = 1
+                    if (ti == 0 .and. ip == 1 .and. btest(basis(j), modulo(m - 1, sites) ) == btest(basis(j), modulo(m + 2, sites))) then
+                        adj(j,loc) = 1
+                    end if
+                    if (ti == 0 .and. ip == 2 .and. btest(basis(j), modulo(m - 2, sites) ) + btest(basis(j), modulo(m + 2, sites) ) == btest(basis(j), modulo(m - 1, sites)) + btest(basis(j), modulo(m + 3, sites)) ) then
+                        adj(j,loc) = 1
+                    end if
                     !if (ti == 0 .and. ip == 1) then
                     !    call findstate(dim, ishftc(basis(j), 1, sites), basis, loc2)
                     !    adj(j,loc2) = 1
@@ -465,53 +468,155 @@ subroutine slhopping_serial(dim, sites, bc, ti, ip, eps, t, basis, rc, ham, nnz,
 end subroutine slhopping_serial
 
 
+
+
+
 !-----------------------------------------!
-!            Adjacency matrix             !
+!            Adjacency matrix (COO)       !
 !-----------------------------------------!
 
-!
-!subroutine adjacency(row, col, dim, sites, bc, basis, adj)
-!
-!    implicit none
-!
-!    integer(kind=8), intent(in) :: dim, basis(dim)
-!    integer, intent(in) :: sites, row, col
-!    character, intent(in) :: bc*1
-!
-!    integer, intent(out) :: adj
-!
-!    integer(kind=8) :: loc = 0
-!    integer(kind=8) :: rep = 0
-!    integer :: pntr = 0
-!    integer :: mask = 0
-!    integer :: i = 0 , j = 0 , m = 0 , k = 0 , l = 0 , q = 0
-!
-!    adj = 0
-!    j   = row
-!
-!    do m = 0, sites - 1 ! m goes through all digits of basis states
-!        if (m == sites - 1 .and. bc /= 'p' ) cycle
-!        mask = ibset( ibset(0, m), mod(m + 1, sites ) )  !Procedure suggested in Lin-paper. Sets a mask with only non-zero components on sites i=m+1 and i=m+2
-!        k = iand( mask, basis( j ) ) !K records the occupancy of those two sites with up-spins
-!        l = ieor( mask, k ) !L records whether hopping is allowed or not. If it's 0 or the same as the mask, hopping is not allowed. If it is allowed the occupations of both sites (01 or 10) are swapped (10 or 01)
-!        if (l == 0 .or. l == mask ) then
-!            cycle
-!        end if
-!        rep = basis(j) - k + l
-!        call findstate(dim, rep, basis, loc) !Finds the location of representative in basis
-!        if ( loc /= col ) cycle
-!        if (ti == 0 .and. ip == 1 .and. btest(basis(j), modulo(m - 1, sites) ) == btest(basis(j), modulo(m + 2, sites))) adj = 1
-!        if (ti == 0 .and. ip == 2 .and. btest(basis(j), modulo(m - 2, sites) ) + btest(basis(j), modulo(m + 2, sites) ) == btest(basis(j), modulo(m - 1, sites)) + btest(basis(j), modulo(m + 3, sites)) ) adj = 1
-!        exit
-!    end do
-!
-!    return
-!
-!end subroutine adjacency
-!
+
+subroutine adjacency_coo( ip, dim, sites, bc, basis, nnz, adj)
+
+    implicit none
+
+    integer(kind=8), intent(in) :: dim, basis(dim)
+    integer, intent(in) :: ip, sites
+    character, intent(in) :: bc*1
+
+    integer, intent(out) :: nnz
+    integer, allocatable, intent(out) :: adj(:,:)
+
+    integer(kind=8) :: row     = 0
+    integer(kind=8) :: col     = 0
+    integer(kind=8) :: scat    = 0
+    integer(kind=8) :: arrsize = 0
+    integer :: mask = 0, cntr = 0
+    integer :: i = 0, m = 0, k = 0, l = 0
+    integer, allocatable :: adj_coo(:,:)
+
+    cntr    = 0
+    arrsize = 2 * dim * sites
+    if (allocated( adj_coo ) ) deallocate( adj_coo )
+    allocate( adj_coo( arrsize, 2 ) )
+
+    do row = 1, dim
+        do m = 0, sites - 1 ! m goes through all digits of basis states
+            if ( m == sites - 1 .and. bc /= 'p' ) cycle
+            mask = ibset( ibset( 0, m ), mod( m + 1, sites ) )  !Procedure suggested in Lin-paper. Sets a mask with only non-zero components on sites i=m+1 and i=m+2
+            k = iand( mask, basis( row ) ) !K records the occupancy of those two sites with up-spins
+            l = ieor( mask, k ) !L records whether hopping is allowed or not. If it's 0 or the same as the mask, hopping is not allowed. If it is allowed the occupations of both sites (01 or 10) are swapped (10 or 01)
+            if (l == 0 .or. l == mask ) then
+                cycle
+            end if
+            scat = basis(row) - k + l
+            call findstate( dim, scat, basis, col ) !Finds the location of representative in basis
+
+            if (ip == 1 .and. btest( basis(row), modulo(m - 1, sites) ) == btest( basis(row), modulo( m + 2, sites ) ) ) then
+                cntr = cntr + 1
+                adj_coo(cntr,1) = row
+                adj_coo(cntr,2) = col
+            end if
+            if (ip == 2 .and. btest( basis(row), modulo( m - 2, sites ) ) + btest( basis(row), modulo( m + 2, sites ) ) &
+                                         == btest(basis(row), modulo(m - 1, sites) ) + btest(basis(row), modulo(m + 3, sites) ) ) then
+                cntr = cntr + 1
+                adj_coo( cntr, 1 ) = row
+                adj_coo( cntr, 2 ) = col
+            end if
+        end do
+    end do
+
+    nnz = cntr
+    if( allocated( adj ) ) deallocate( adj )
+    allocate( adj( nnz, 2 ) )
+    do i = 1, nnz
+        adj( i, 1 ) = adj_coo( i, 1 )
+        adj( i, 2 ) = adj_coo( i, 2 )
+    end do
+    if( allocated( adj_coo ) ) deallocate( adj_coo )
+
+    return
+
+end subroutine adjacency_coo
 
 
 
+
+
+
+!-----------------------------------------!
+!            Adjacency matrix  (CSR)      !
+!-----------------------------------------!
+
+
+subroutine adjacency_csr(ti, ip, dim, sites, bc, basis, nnz, adjpntr, adjcol)
+
+    implicit none
+
+    integer(kind=8), intent(in) :: dim, basis(dim)
+    integer, intent(in) :: ti, ip, sites
+    character, intent(in) :: bc*1
+
+    integer, intent(out) :: nnz
+    integer, allocatable, intent(out) :: adjpntr(:), adjcol(:)
+
+    integer(kind=8) :: row     = 0
+    integer(kind=8) :: col     = 0
+    integer(kind=8) :: scat    = 0
+    integer(kind=8) :: arrsize = 0
+    integer :: mask = 0, cntr  = 0
+    integer :: i = 0, m = 0, k = 0, l = 0
+    integer, allocatable :: adj_coo(:,:)
+    double precision, allocatable :: dummy(:)
+
+    cntr = 0
+    arrsize = 2*dim*sites
+    if (allocated(adj_coo)) deallocate(adj_coo)
+    allocate(adj_coo(arrsize,2))
+
+
+    do row = 1, dim
+        do m = 0, sites - 1 ! m goes through all digits of basis states
+            if (m == sites - 1 .and. bc /= 'p' ) cycle
+            mask = ibset( ibset(0, m), mod(m + 1, sites ) )  !Procedure suggested in Lin-paper. Sets a mask with only non-zero components on sites i=m+1 and i=m+2
+            k = iand( mask, basis( row ) ) !K records the occupancy of those two sites with up-spins
+            l = ieor( mask, k ) !L records whether hopping is allowed or not. If it's 0 or the same as the mask, hopping is not allowed. If it is allowed the occupations of both sites (01 or 10) are swapped (10 or 01)
+            if (l == 0 .or. l == mask ) then
+                cycle
+            end if
+            scat = basis(row) - k + l
+            call findstate(dim, scat, basis, col) !Finds the location of representative in basis
+
+            if (ti == 0 .and. ip == 1 .and. btest(basis(row), modulo(m - 1, sites) ) == btest(basis(row), modulo(m + 2, sites))) then
+                cntr = cntr + 1
+                adj_coo(cntr,1) = row
+                adj_coo(cntr,2) = col
+            end if
+            if (ti == 0 .and. ip == 2 .and. btest(basis(row), modulo(m - 2, sites) ) + btest(basis(row), modulo(m + 2, sites) ) &
+                                         == btest(basis(row), modulo(m - 1, sites)) + btest(basis(row), modulo(m + 3, sites)) ) then
+                cntr = cntr + 1
+                adj_coo(cntr,1) = row
+                adj_coo(cntr,2) = col
+            end if
+        end do
+    end do
+
+    nnz = cntr
+    if( allocated( adjpntr ) ) deallocate( adjpntr )
+    if( allocated( adjcol  ) ) deallocate( adjcol  )
+    if( allocated( dummy   ) ) deallocate( dummy   )
+    allocate( adjpntr( dim + 1 ) )
+    allocate( adjcol( nnz ) )
+    allocate( dummy( nnz ) )
+
+    call coocsr( dim, nnz, dummy, adj_coo(1:nnz,1), adj_coo(1:nnz,2), dummy, adjcol, adjpntr ) !Creates CSR-format (ao,jao,iao) sparse matrix from coordinate format (a,ir,jc)
+
+    if( allocated( adj_coo ) ) deallocate( adj_coo )
+    if( allocated( dummy ) ) deallocate( dummy )
+
+    return
+
+end subroutine adjacency_csr
 
 
 
@@ -519,210 +624,298 @@ end subroutine slhopping_serial
 !            Find connected components (sparse)           !
 !---------------------------------------------------------!
 
-!
-!subroutine digraph_adj_components2 ( adj, lda, nnode, ncomp, comp, dad, order )
-!
-!!*****************************************************************************
-!!
-!!! DIGRAPH_ADJ_COMPONENTS finds the strongly connected components of a digraph.
-!!
-!!  Discussion:
-!!
-!!    A digraph is a directed graph.
-!!
-!!    A strongly connected component of a directed graph is the largest
-!!    set of nodes such that there is a directed path from any node to
-!!    any other node in the same component.
-!!
-!!  Licensing:
-!!
-!!    This code is distributed under the GNU LGPL license.
-!!
-!!  Modified:
-!!
-!!    15 April 1999
-!!
-!!  Reference:
-!!
-!!    K Thulasiraman, M Swamy,
-!!    Graph Theory and Algorithms,
-!!    John Wiley, New York, 1992.
-!!
-!!  Parameters:
-!!
-!!    Input, integer ( kind = 4 ) ADJ(LDA,NNODE), the adjacency information.
-!!    ADJ(I,J) is 1 if there is a direct link from node I to node J.
-!!
-!!    Input, integer ( kind = 4 ) LDA, the leading dimension of ADJ.
-!!
-!!    Input, integer ( kind = 4 ) NNODE, the number of nodes.
-!!
-!!    Output, integer ( kind = 4 ) NCOMP, the number of strongly connected
-!!    components.
-!!
-!!    Output, integer ( kind = 4 ) COMP(NNODE), lists the connected component
-!!    to which each node belongs.
-!!
-!!    Output, integer ( kind = 4 ) DAD(NNODE), the father array for the depth
-!!    first search trees.  DAD(I) = 0 means that node I is the root of
-!!    one of the trees.  DAD(I) = J means that the search descended
-!!    from node J to node I.
-!!
-!!    Output, integer ( kind = 4 ) ORDER(NNODE), the order in which the nodes
-!!    were traversed, from 1 to NNODE.
-!!
-!  implicit none
-!
-!!  integer ( kind = 4 ) lda
-!!  integer ( kind = 4 ) nnode
-!  integer ( kind = 8 ) lda
-!  integer ( kind = 8 ) nnode
-!
-!  integer ( kind = 4 ) adj(lda,nnode)
-!  integer ( kind = 4 ) comp(nnode)
-!  integer ( kind = 4 ) dad(nnode)
-!  integer ( kind = 4 ) iorder
-!  integer ( kind = 4 ) lowlink(nnode)
-!  integer ( kind = 4 ) mark(nnode)
-!  integer ( kind = 4 ) ncomp
-!  integer ( kind = 4 ) nstack
-!  integer ( kind = 4 ) order(nnode)
-!  integer ( kind = 4 ) point(nnode)
-!  integer ( kind = 4 ) stack(nnode)
-!  integer ( kind = 4 ) v
-!  integer ( kind = 4 ) w
-!  integer ( kind = 4 ) x
-!!
-!!  Initialization.
-!!
-!  comp(1:nnode) = 0
-!  dad(1:nnode) = 0
-!  order(1:nnode) = 0
-!  lowlink(1:nnode) = 0
-!  mark(1:nnode) = 0
-!  point(1:nnode) = 0
-!
-!  iorder = 0
-!  nstack = 0
-!  ncomp = 0
-!!
-!!  Select any node V not stored in the stack, that is, with MARK(V) = 0.
-!!
-!  do
-!
-!    v = 0
-!
-!    do
-!
-!      v = v + 1
-!
-!      if ( nnode < v ) then
-!        !adj(1:nnode,1:nnode) = abs( adj(1:nnode,1:nnode) )
-!        return
-!      end if
-!
-!      if ( mark(v) /= 1 ) then
-!        exit
-!      end if
-!
-!    end do
-!
-!    iorder = iorder + 1
-!
-!    order(v) = iorder
-!    lowlink(v) = iorder
-!    mark(v) = 1
-!
-!    nstack = nstack + 1
-!    stack(nstack) = v
-!    point(v) = 1
-!
-!30  continue
-!!
-!!  Consider each node W.
-!!
-!    do w = 1, nnode
-!!
-!!  Is there an edge (V,W) and has it not been examined yet?
-!!
-!    call adjacency(row, col, dim, sites, bc, basis, adj)
-!      if ( 0 < adj ) then
-!!      if ( 0 < adj(v,w) ) then
-!
-!        !adj(v,w) = - adj(v,w)
-!        ijarr(cntr,1) = v
-!        ijarr(cntr,2) = w
-!        cntr = cntr + 1
-!!
-!!  Is the node on the other end of the edge undiscovered yet?
-!!
-!        if ( mark(w) == 0 ) then
-!
-!          iorder = iorder + 1
-!          order(w) = iorder
-!          lowlink(w) = iorder
-!          dad(w) = v
-!          mark(w) = 1
-!
-!          nstack = nstack + 1
-!          stack(nstack) = w
-!          point(w) = 1
-!
-!          v = w
-!
-!        else if ( mark(w) == 1 ) then
-!
-!          if ( order(w) < order(v) .and. point(w) == 1 ) then
-!            lowlink(v) = min ( lowlink(v), order(w) )
-!          end if
-!
-!        end if
-!
-!        go to 30
-!
-!      end if
-!
-!    end do
-!
-!    if ( lowlink(v) == order(v) ) then
-!
-!      ncomp = ncomp + 1
-!
-!      do
-!
-!        if ( nstack <= 0 ) then
-!          write ( *, '(a)' ) ' '
-!          write ( *, '(a)' ) 'DIGRAPH_ADJ_COMPONENTS - Fatal error!'
-!          write ( *, '(a)' ) '  Illegal stack reference.'
-!          stop
-!        end if
-!
-!        x = stack(nstack)
-!        nstack = nstack - 1
-!
-!        point(x) = 0
-!        comp(x) = ncomp
-!
-!        if ( x == v ) then
-!          exit
-!        end if
-!
-!      end do
-!
-!    end if
-!
-!    if ( dad(v) /= 0 ) then
-!      lowlink(dad(v)) = min ( lowlink(dad(v)), lowlink(v) )
-!      v = dad(v)
-!      go to 30
-!    end if
-!
-!  end do
-!
-!  return
-!end
-!
+!Eric's code
+subroutine connected_components(NNZ, N, indices, indptr, labels)
+    ! Label the connected components of a CSR or CSC matrix.
+    !
+    ! Input parameters
+    ! ----------------
+    ! NNZ : integer
+    !     Number of non-zero entries.
+    ! N : integer
+    !     Number of rows or columns.
+    ! indices : integer(NNZ)
+    !     Row/column index of non-zero values.
+    ! indptr : integer(N+1)
+    !     Indexes where a given row/column starts.
+    !
+    ! Output parameters
+    ! -----------------
+    ! labels : integer(N)
+    !     Array of labels of the connected components.
+    !     Nodes with the same label are connected.
+    integer, parameter :: VOID = -1
+    integer, intent(in) :: NNZ
+    integer(kind=8), intent(in) :: N
+    integer, intent(in) :: indices(NNZ), indptr(N+1)
+    integer, intent(out) :: labels(N)
+    if (indptr(1) == 0) then
+        call connected_components_0(NNZ, N, indices, indptr, labels)
+    else if (indptr(1) == 1) then
+        call connected_components_1(NNZ, N, indices, indptr, labels)
+    else
+        labels = VOID
+    end if
 
+end subroutine connected_components
+
+subroutine connected_components_0(NNZ, N, indices, indptr, labels)
+    ! Label the connected components of a CSR or CSC matrix (0-based indexing).
+    integer, parameter :: VOID = -1, LAST = -2
+    integer, intent(in) :: NNZ
+    integer(kind=8), intent(in) :: N
+    integer, intent(in) :: indices(0:NNZ-1), indptr(0:N)
+    integer, intent(out) :: labels(0:N-1)
+    integer :: label, row, col, ptr, head, v
+    labels = VOID
+    label = 0
+    do row = 0, N-1
+        if (labels(row) == VOID) then
+            ! stack.push(row)
+            head = row
+            labels(row) = LAST
+            do while (head /= LAST)
+                ! v = stack.pop()
+                v = head
+                head = labels(v)
+                ! Traverse edges
+                labels(v) = label
+                do ptr = indptr(v), indptr(v+1)-1
+                    col = indices(ptr)
+                    if (labels(col) == VOID) then
+                        ! stack.push(col)
+                        labels(col) = head
+                        head = col
+                    end if
+                end do
+            end do
+            label = label + 1
+        end if
+    end do
+end subroutine connected_components_0
+
+subroutine connected_components_1(NNZ, N, indices, indptr, labels)
+    ! Label the connected components of a CSR or CSC matrix (1-based indexing).
+    integer, parameter :: VOID = -1, LAST = -2
+    integer, intent(in) :: NNZ
+    integer(kind=8), intent(in) :: N
+    integer, intent(in) :: indices(NNZ), indptr(N+1)
+    integer, intent(out) :: labels(N)
+    integer :: label, row, col, ptr, head, v
+    labels = VOID
+    label = 1
+    do row = 1, N
+        if (labels(row) == VOID) then
+            ! stack.push(row)
+            head = row
+            labels(row) = LAST
+            do while (head /= LAST)
+                ! v = stack.pop()
+                v = head
+                head = labels(v)
+                ! Traverse edges
+                labels(v) = label
+                do ptr = indptr(v), indptr(v+1)-1
+                    col = indices(ptr)
+                    if (labels(col) == VOID) then
+                        ! stack.push(col)
+                        labels(col) = head
+                        head = col
+                    end if
+                end do
+            end do
+            label = label + 1
+        end if
+    end do
+end subroutine connected_components_1
+
+
+
+
+!--------------------------------------------------------------!
+!            Calculate connected components (sparse)           !
+!--------------------------------------------------------------!
+
+subroutine scc(dim, sites, bc, basis, ncompv1, ncompv2, compv1, compv2)
+
+    integer(kind=8), intent(in) :: dim, basis(dim)
+    integer, intent(in) :: sites
+    character, intent(in) :: bc*1
+    integer, intent(out) :: ncompv1, ncompv2
+    integer, allocatable, intent(out) :: compv1(:), compv2(:)
+
+    integer :: nnz   = 0
+    integer :: ncomp = 0
+    integer :: k = 0, i = 0, j = 0, cntr = 0
+    integer, allocatable :: comp(:), adj(:,:), adj_temp(:,:), adjpntr(:), adjcol(:), adj_coo(:,:), compsize(:,:)
+    double precision, allocatable :: dummy(:)
+
+    do k = 1, 2
+        if ( not( allocated( comp ) ) )  allocate( comp( dim ) )
+        comp = 0
+        !Generate first adjacency matrix
+        !call adjacency_csr( dim, sites, bc, basis, adjpntr, adjcol )
+        call adjacency_coo(k, dim, sites, bc, basis, nnz, adj_temp)
+
+        if( allocated( adjpntr ) ) deallocate( adjpntr )
+        if( allocated( adjcol  ) ) deallocate( adjcol  )
+        if( allocated( dummy   ) ) deallocate( dummy   )
+        allocate( adjpntr( dim + 1 ) )
+        allocate( adjcol( nnz ) )
+        allocate( dummy( nnz ) )
+
+        call coocsr( dim, nnz, dummy, adj_temp(1:nnz,1), adj_temp(1:nnz,2), dummy, adjcol, adjpntr ) !Creates CSR-format (ao,jao,iao) sparse matrix from coordinate format (a,ir,jc)
+
+        if( allocated( dummy ) ) deallocate( dummy )
+
+        call connected_components( nnz, dim, adjcol, adjpntr, comp )
+        if( allocated( adjpntr ) ) deallocate( adjpntr )
+        if( allocated( adjcol  ) ) deallocate( adjcol  )
+
+        ncomp = maxval( comp )
+        print*, 'Number of connected components =', ncomp
+        print*, ''
+
+        !Generate list 'compsize' assigning size of CC, bond number of CC and a representative state
+        if( allocated( compsize ) ) deallocate( compsize )
+        if( allocated( adj_coo ) ) deallocate( adj_coo )
+        allocate( compsize( ncomp, 3 ) ) !1st col: Size of CC; 2nd col: Bond number of CC; 3rd col: Representative of CC; Row # = CC #
+        allocate( adj_coo( 2 * dim * sites, 2 ) )
+        compsize = 0
+        do i = 1, dim
+            if ( compsize( comp(i), 1 ) == 0 ) then
+                compsize( comp(i), 3 ) = i
+                do j = 0, sites - 1
+                    if ( k == 1 .and. btest( basis(i), j ) .and. btest( basis(i), modulo(j + 1, sites))) compsize(comp(i), 2) = compsize(comp(i), 2) + 1
+                    if ( k == 2 .and. btest( basis(i), j ) .and. btest( basis(i), modulo(j + 2, sites))) compsize(comp(i), 2) = compsize(comp(i), 2) + 1
+                end do
+            end if
+            compsize( comp(i), 1 ) = compsize( comp(i), 1 ) + 1
+        end do
+        cntr = 0
+        do i = 1, ncomp - 1
+            do j = i + 1, ncomp
+                if ( compsize( i, 1 ) == compsize( j, 1 ) .and. compsize( i, 2 ) == compsize( j, 2 ) ) then
+                    cntr = cntr + 1
+                    adj_coo( cntr, 1) = compsize( i, 3 )
+                    adj_coo( cntr, 2) = compsize( j, 3 )
+                    cntr = cntr + 1
+                    adj_coo( cntr, 1) = compsize( j, 3 )
+                    adj_coo( cntr, 2) = compsize( i, 3 )
+                end if
+            end do
+        end do
+
+        if( allocated( adj ) ) deallocate( adj )
+        allocate( adj( nnz + cntr, 2 ) )
+        do i = 1, nnz
+            adj( i, 1 ) = adj_temp( i, 1 )
+            adj( i, 2 ) = adj_temp( i, 2 )
+        end do
+        do i = nnz + 1, nnz + cntr
+            adj( i, 1 ) = adj_coo( i - nnz, 1 )
+            adj( i, 2 ) = adj_coo( i - nnz, 2 )
+        end do
+        nnz = nnz + cntr
+
+        if( allocated( adj_temp ) ) deallocate( adj_temp )
+        if( allocated( adj_coo ) ) deallocate( adj_coo )
+        if( allocated( adjpntr ) ) deallocate( adjpntr )
+        if( allocated( adjcol  ) ) deallocate( adjcol  )
+        if( allocated( dummy   ) ) deallocate( dummy   )
+
+        allocate( adjpntr( dim + 1 ) )
+        allocate( adjcol( nnz ) )
+        allocate( dummy( nnz ) )
+
+        call coocsr( dim, nnz, dummy, adj(1:nnz,1), adj(1:nnz,2), dummy, adjcol, adjpntr ) !Creates CSR-format (ao,jao,iao) sparse matrix from coordinate format (a,ir,jc)
+
+        if( allocated( dummy   ) ) deallocate( dummy   )
+
+        call connected_components( nnz, dim, adjcol, adjpntr, comp )
+        if( allocated( adjpntr ) ) deallocate( adjpntr )
+        if( allocated( adjcol  ) ) deallocate( adjcol  )
+
+        ncomp = maxval( comp )
+
+        if ( k == 1 ) then
+            ncompv1 = ncomp
+            compv1  = comp
+        else if ( k == 2 ) then
+            ncompv2 = ncomp
+            compv2  = comp
+        end if
+    end do
+    print*, 'V1: Number of connected components =', ncompv1
+    print*, ''
+    print*, 'V2: Number of connected components =', ncompv2
+    print*, ''
+    return
+end subroutine scc
+
+
+
+!-------------------------------------------------------------!
+!            Calculate connected components (dense)           !
+!-------------------------------------------------------------!
+
+    !if (ip == 1) then
+    !    do k = 1, 2
+    !        if ( not( allocated( adj ) ) )   allocate( adj( dim_hs,dim_hs ) )
+    !        if ( not( allocated( comp ) ) )  allocate( comp( dim_hs ) )
+    !        if ( not( allocated( dad ) ) )   allocate( dad( dim_hs ) )
+    !        if ( not( allocated( order ) ) ) allocate( order( dim_hs ) )
+    !        if ( not( allocated( periods ) ) ) allocate( periods( dim_hs ) )
+    !        adj     = 0
+    !        comp    = 0
+    !        dad     = 0
+    !        order   = 0
+    !        periods = 0
+    !        !Generate first adjacency matrix
+    !        call slhopping_serial ( dim_hs, sites, bc, 0, k, eps, t, permutations, pseudo_rc, pseudo_ham, pseudoi, mom, periods, adj )
+    !        call digraph_adj_components ( adj, dim_hs, dim_hs, ncomp, comp, dad, order )
+    !        deallocate( periods )
+    !        print*, 'Number of connected components =', ncomp
+    !        print*, ''
+    !
+    !        !Generate list 'compsize' assigning size of CC, bond number of CC and a representative state
+    !        if( allocated( compsize ) ) deallocate( compsize )
+    !        allocate( compsize( ncomp, 3 ) ) !1st col: Size of CC; 2nd col: Bond number of CC; 3rd col: Representative of CC; Row # = CC #
+    !        compsize = 0
+    !        do i = 1, dim_hs
+    !            if ( compsize( comp(i), 1 ) == 0 ) then
+    !                compsize( comp(i), 3 ) = i
+    !                do j = 0, sites - 1
+    !                    if ( k == 1 .and. btest( permutations(i), j ) .and. btest( permutations(i), modulo(j + 1, sites))) compsize(comp(i), 2) = compsize(comp(i), 2) + 1
+    !                    if ( k == 2 .and. btest( permutations(i), j ) .and. btest( permutations(i), modulo(j + 2, sites))) compsize(comp(i), 2) = compsize(comp(i), 2) + 1
+    !                end do
+    !            end if
+    !            compsize( comp(i), 1 ) = compsize( comp(i), 1 ) + 1
+    !        end do
+    !        do i = 1, ncomp - 1
+    !            do j = i + 1, ncomp
+    !                if ( compsize( i, 1 ) == compsize( j, 1 ) .and. compsize( i, 2 ) == compsize( j, 2 ) ) then
+    !                    adj( compsize( i, 3 ), compsize( j, 3 ) ) = 1
+    !                    adj( compsize( j, 3 ), compsize( i, 3 ) ) = 1
+    !                end if
+    !            end do
+    !        end do
+    !        ncomp = 0
+    !        comp  = 0
+    !        dad   = 0
+    !        order = 0
+    !        !Calculate second adjacency matrix
+    !        call digraph_adj_components ( adj, dim_hs, dim_hs, ncomp, comp, dad, order )
+    !        deallocate( dad, order, pseudo_ham, pseudo_rc  )
+    !        if ( k == 1 ) then
+    !            ncompv1 = ncomp
+    !            compv1 = comp
+    !        else if ( k == 2 ) then
+    !            ncompv2 = ncomp
+    !            compv2 = comp
+    !        end if
+    !    end do
+    !end if
 
 
 
@@ -779,9 +972,7 @@ subroutine slhopping(dim, sites, ti, bc, eps, t, basis, rc, ham, nnz, mom, perio
     !$omp end parallel
 
 !    if(.not. dynamic) n_threads = max(int((n_threads - 2)/2),1)
-     n_threads = max(int((n_threads - 2)/2),1)
-!    n_threads = 1
-
+    n_threads = max(int((n_threads - 2)/2),1)
 
     n_temp = 0
     !$omp parallel default(firstprivate) shared(basis, periods, temp, temp_rc, n_temp, n_threads, chunk, remainder, arrsize) num_threads(n_threads)
@@ -2357,7 +2548,7 @@ subroutine printparams(dim, sites, pts, ti, mom, nthreads, dim_hs, nev, ndis, v1
     print*, ''
     print('(1x, a,i0)'), 'Particles = ', pts
     print*, ''
-    if (ti == 1) print('(1x, a,f10.4)'), 'Momentum k = ', mom
+    if (ti == 1) print('(1x, a, i0)'), 'Momentum k = ', mom
     if (ti == 1) print*, ''
     print('(1x, a,i0)'), 'Number of Threads = ', nthreads
     print*, ''
@@ -2518,9 +2709,9 @@ end subroutine
 
 
 
-!-------------------------------------------------!
-!            Find connected components            !
-!-------------------------------------------------!
+!--------------------------------------------------------!
+!            Find connected components (Dense)           !
+!--------------------------------------------------------!
 
 subroutine digraph_adj_components ( adj, lda, nnode, ncomp, comp, dad, order )
 
