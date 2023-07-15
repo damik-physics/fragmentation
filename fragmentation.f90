@@ -68,8 +68,8 @@ program fragmentation
     integer :: cntr = 0
     integer :: pseudoi = 0
     integer :: ncomp = 0, ncompv1 = 0, ncompv2 = 0
-    integer :: vi  = 0 !SPARTAN: COMMENT OUT, EXTERNALLY PROVIDED
-    !integer :: v2i = 0 !SPARTAN: COMMENT OUT, EXTERNALLY PROVIDED
+    integer :: vi  = 0 !SPARTAN: COMMENT OUT FOR SINGLE
+    integer :: v2i = 0 !SPARTAN: COMMENT OUT
 
     double precision :: delta    = 0.d0
     double precision :: rmean    = 0.d0
@@ -105,24 +105,28 @@ program fragmentation
     !$OMP THREADPRIVATE (nv, nv2)
     nv  = 0
     nv2 = 0
-    v1list = 1 !SPARTAN
-    v2list = 0 !SPARTAN
-    !allocate(v1_list(23))
-    !do i = 1, 22
-    !    v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
-    !end do
-    !allocate(v2_list(23))
-    !do i = 1, 22
-    !    v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
-    !end do
-    allocate(v1_list(116))
-    do i = 0, 115
-        v1_list(i+1) = 0.1 * 1.5**(real(i)/5)
+    v1list = 1 !SPARTAN 1  SINGLE 0
+    v2list = 1 !SPARTAN 0  SINGLE 0
+    allocate(v1_list(23))
+    v1_list(1) = 0
+    do i = 1, 22
+        v1_list(i+1) = 0.1 * 1.5**(real(i)-1)
     end do
-    allocate(v2_list(116))
-    do i = 0, 115
-        v2_list(i+1) = 0.1 * 1.5**(real(i)/5)
+    allocate(v2_list(23))
+    v2_list(1) = 0
+    do i = 1, 22
+        v2_list(i+1) = 0.1 * 1.5**(real(i)-1)
     end do
+    !allocate(v1_list(116))
+    !v1_list(1) = 0
+    !do i = 1, 115
+    !    v1_list(i+1) = 0.1 * 1.5**((real(i)-1)/5)
+    !end do
+    !allocate(v2_list(116))
+    !v2_list(1) = 0
+    !do i = 1, 115
+    !    v2_list(i+1) = 0.1 * 1.5**((real(i)-1)/5)
+    !end do
 
     call datetime(0)
 
